@@ -1,0 +1,318 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>비전검사 함수 연결 지도</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one full-width call map, then two data-flow figures, then one figure per file; a bottom sheet shows the selected function. */
+:root{--bg:#f5f8f9;--card:#fff;--lane:#edf2f4;--fg:#15242b;--mut:#566872;--line:#cdd8dd;--node:#fff;--main:#1767ad;--app:#b8501a;--int:#5d7079;--pill:#e3ecef;--sel:#15242b;--selfg:#fff;
+--sans:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;--mono:"JetBrains Mono",Consolas,"IBM Plex Sans KR","Malgun Gothic",monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f171b;--card:#162127;--lane:#1b282f;--fg:#e4edf0;--mut:#9bafb8;--line:#33454e;--node:#22323a;--main:#74b8f2;--app:#f39a62;--int:#8aa0aa;--pill:#2a3c45;--sel:#e4edf0;--selfg:#0f171b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f171b;--card:#162127;--lane:#1b282f;--fg:#e4edf0;--mut:#9bafb8;--line:#33454e;--node:#22323a;--main:#74b8f2;--app:#f39a62;--int:#8aa0aa;--pill:#2a3c45;--sel:#e4edf0;--selfg:#0f171b;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.65}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 120px}
+h1{font-size:28px;line-height:1.25;margin:0 0 6px;text-wrap:balance}
+h2{font-size:21px;margin:52px 0 4px;text-wrap:balance}
+h3{font:600 17px/1.4 var(--mono);margin:0}
+p{margin:0 0 10px;max-width:84ch}.mut{color:var(--mut)}
+code{font-family:var(--mono);font-size:.9em}
+nav{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 0}nav a{color:var(--main)}
+.bar{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin:16px 0 10px}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font:500 14px var(--sans);color:var(--fg);background:var(--card);border:0;border-right:1px solid var(--line);padding:7px 13px;cursor:pointer}
+.seg button:last-child{border-right:0}.seg button[aria-pressed="true"]{background:var(--sel);color:var(--selfg)}
+button:focus-visible,a:focus-visible,g.n:focus-visible{outline:2px solid var(--main);outline-offset:2px}
+.key{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13.5px;color:var(--mut)}.key span{display:inline-flex;align-items:center;gap:6px}
+.key i{width:20px;height:0;border-top:2.5px solid}.key b{width:9px;height:9px;border-radius:50%}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:6px}
+.scroll{overflow-x:auto;padding:10px}
+figcaption{padding:9px 14px;border-top:1px solid var(--line);font-size:14px;color:var(--mut)}
+svg{display:block;max-width:none;margin:0 auto}#map svg{width:100%;min-width:1040px;height:auto}
+svg text{font-family:var(--mono);font-size:11.5px;fill:var(--fg)}
+svg text.t{font-weight:600;font-size:12.5px}svg text.s{font-family:var(--sans);font-size:11px;fill:var(--mut)}
+.lane{fill:var(--lane);stroke:var(--line)}
+g.n{cursor:pointer}g.n rect{fill:var(--node);stroke:var(--int);stroke-width:1}
+g.n.ext rect{fill:none;stroke-dasharray:4 3}g.n.pill rect{fill:var(--pill);stroke:none}g.n.pill,g.n.out{cursor:default}g.n.out rect{fill:none;stroke:var(--line)}
+g.n.own rect{stroke:var(--fg);stroke-width:1.4}
+g.n.sel rect{fill:var(--sel);stroke:var(--sel)}g.n.sel text{fill:var(--selfg)}
+g.n[data-k]:hover rect{stroke:var(--fg);stroke-width:1.8}
+path.e{fill:none;stroke:var(--int);stroke-width:1.2;opacity:.6}
+path.e.main{stroke:var(--main)}path.e.app{stroke:var(--app)}
+path.e.on{opacity:1;stroke-width:2.2}path.e.dim{opacity:.09}g.n.dim{opacity:.22}
+.dm{fill:var(--main)}.da{fill:var(--app)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px 32px;margin:18px 0 0;padding:0;list-style:none}
+.facts li{min-width:0}.facts strong{display:block}
+.file{margin-top:26px;display:grid;gap:8px;min-width:0}.file>*{min-width:0}
+.file p{margin:0}
+#sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:2px solid var(--fg);max-height:34vh;overflow:auto;z-index:5;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -6px 24px rgb(0 0 0/.14)}
+#sheet>div{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 16px}
+#sheet header{display:flex;gap:12px;justify-content:space-between;align-items:flex-start}
+#close{font:500 14px var(--sans);color:var(--fg);background:none;border:1px solid var(--line);border-radius:6px;padding:4px 12px;cursor:pointer;flex:none}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:10px 28px;margin-top:8px}.two>div{min-width:0}
+.two h4{margin:0 0 4px;font-size:14px}.two ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:5px 18px}
+.two li{font-size:13px;min-width:0}.two li code{overflow-wrap:anywhere;color:var(--mut)}
+.lnk{font:600 13px var(--mono);color:var(--main);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+</style>
+<div class="wrap">
+<h1>비전검사 함수 연결 지도</h1>
+<p class="mut">파이썬 파일 7개, 함수 44개, 호출 관계 78개. 화살표는 부르는 함수에서 불리는 함수로 향합니다.</p>
+<nav><a href="#map">전체 지도</a><a href="#flow">데이터 흐름</a><a href="#files">파일별 연결</a></nav>
+
+<h2>전체 지도</h2>
+<p>왼쪽의 실행 파일이 오른쪽 함수를 부르고, 오른쪽으로 갈수록 더 안쪽에서 쓰이는 함수입니다. 함수를 누르면 그 함수로 들어오고 나가는 길만 남고, 호출한 코드와 줄 번호가 나옵니다.</p>
+<div class="bar"><div class="seg" role="group" aria-label="실행 경로">
+<button id="m-all" data-m="all" aria-pressed="true">전체</button><button id="m-main" data-m="main" aria-pressed="false">main.py 실행 시</button><button id="m-app" data-m="app" aria-pressed="false">app.py 실행 시</button></div>
+<div class="key"><span><i style="border-color:var(--main)"></i>main.py의 호출</span><span><i style="border-color:var(--app)"></i>app.py의 호출</span><span><i style="border-color:var(--int)"></i>vision_log 안의 호출</span><span><b style="background:var(--main)"></b>main.py에서 도달</span><span><b style="background:var(--app)"></b>app.py에서 도달</span></div></div>
+<figure id="map"><div class="scroll"></div><figcaption>run()과 update()는 analysis의 같은 함수를 나눠 씁니다. 안쪽으로 갈수록 defect_mask()와 defect_rate()로 모입니다.</figcaption></figure>
+<ul class="facts" id="facts"></ul>
+
+<h2 id="flow">데이터 흐름</h2>
+<p>집계 함수들은 서로를 직접 부르지 않는 경우가 많습니다. 이 함수들은 <code>run()</code>과 <code>update()</code>가 한 함수의 결과를 변수에 담아 다음 함수에 넘기면서 이어집니다. 네모는 함수, 둥근 칸은 변수, 옅은 테두리는 최종 결과물입니다.</p>
+<div class="file"><h3>main.py → run()</h3><figure><div class="scroll" id="f-run"></div><figcaption>df 하나가 여러 집계로 갈라지고, 결과는 tables에 모여 save_csv()로 저장됩니다. fac_defect와 daily는 CSV와 그래프에, spikes는 CSV와 요약에 두 번 쓰입니다. 이상 기록 추출과 기록 골라내기에는 df에서 source_file 열을 뺀 full이 들어갑니다. 설정값(config)과 로그 설정은 생략했습니다.</figcaption></figure></div>
+<div class="file"><h3>app.py → update()</h3><figure><div class="scroll" id="f-upd"></div><figcaption>filter_records()를 두 번 부릅니다. ①은 시설·날짜로 scoped를 만들고, ②는 불량 종류로 더 좁혀 picked를 만듭니다. 박스 관련 함수 3개만 picked를 씁니다. 선택한 불량 종류(defects)는 facility_summary, facility_defect_table, daily_facility_summary, detect_spikes에도 인자로 들어가지만 find_anomalies에는 들어가지 않습니다.</figcaption></figure></div>
+
+<h2 id="files">파일별 연결</h2>
+<p>실선 칸이 그 파일의 함수, 점선 칸이 다른 파일의 함수입니다. 왼쪽에서 불려 들어와 오른쪽으로 부르며 나갑니다.</p>
+<div id="filelist"></div>
+<p class="mut" style="margin-top:36px;font-size:13.5px">현재 작업 폴더의 코드에서 자동으로 뽑은 관계입니다. 직접 만든 함수끼리의 호출만 담았고 pandas, dash, matplotlib 호출은 뺐습니다. main.py와 app.py를 실제로 실행해 78개 중 77개가 같은 관계로 호출되는 것을 확인했습니다. 나머지 하나는 main.py 118번째 줄의 시작 호출입니다. 데이터 흐름 두 그림은 run()과 update()의 코드를 읽고 정리했습니다.</p>
+</div>
+<div id="sheet" role="region" aria-label="선택한 함수" hidden><div></div></div>
+<script>
+const G={"funcs": {"main.parse_args": {"line": 16, "end": 27, "sig": "argv=None"}, "main.run": {"line": 30, "end": 92, "sig": "config"}, "main.main": {"line": 95, "end": 114, "sig": "argv=None"}, "app.parse_args": {"line": 15, "end": 22, "sig": ""}, "app.card": {"line": 48, "end": 52, "sig": "title, value_id"}, "app.table": {"line": 55, "end": 63, "sig": "table_id, page_size=10"}, "app.section": {"line": 66, "end": 67, "sig": "title, *children"}, "app.to_table": {"line": 147, "end": 151, "sig": "df"}, "app.update": {"line": 178, "end": 230, "sig": "facilities, start_date, end_date, defects"}, "config._deep_update": {"line": 26, "end": 32, "sig": "base, new"}, "config.load_config": {"line": 35, "end": 57, "sig": "path='config.json', overrides=None"}, "loader.setup_logger": {"line": 23, "end": 40, "sig": "output_dir, filename='run_log.txt'"}, "loader.find_log_files": {"line": 43, "end": 47, "sig": "input_dir, prefix='facility_'"}, "loader.read_log_file": {"line": 50, "end": 86, "sig": "path"}, "loader.read_all_logs": {"line": 89, "end": 96, "sig": "input_dir, prefix='facility_'"}, "loader.merge_logs": {"line": 99, "end": 106, "sig": "frames"}, "loader.read_defect_codes": {"line": 109, "end": 118, "sig": "path"}, "loader.attach_defect_info": {"line": 121, "end": 130, "sig": "logs, defect_codes"}, "loader.load_dataset": {"line": 133, "end": 139, "sig": "config"}, "analysis._as_list": {"line": 23, "end": 30, "sig": "value"}, "analysis.defect_mask": {"line": 33, "end": 46, "sig": "df, defect_codes=None"}, "analysis.defect_rate": {"line": 49, "end": 65, "sig": "defects, inspections"}, "analysis._rate_table": {"line": 68, "end": 88, "sig": "df, keys, key_names, defect_codes=None"}, "analysis._with_date": {"line": 91, "end": 93, "sig": "df"}, "analysis.facility_summary": {"line": 97, "end": 107, "sig": "df, defect_codes=None"}, "analysis.facility_defect_table": {"line": 111, "end": 128, "sig": "df, defect_codes=None"}, "analysis.category_table": {"line": 131, "end": 137, "sig": "df, defect_codes=None"}, "analysis.defect_type_counts": {"line": 140, "end": 148, "sig": "df, defect_codes=None"}, "analysis.daily_facility_summary": {"line": 152, "end": 154, "sig": "df, defect_codes=None"}, "analysis.camera_summary": {"line": 157, "end": 159, "sig": "df, defect_codes=None"}, "analysis.find_anomalies": {"line": 163, "end": 173, "sig": "df, threshold_ms=1000"}, "analysis.filter_records": {"line": 177, "end": 193, "sig": "df, facilities=None, start_date=None, end_date=None, defect_codes=None"}, "analysis.build_summary": {"line": 197, "end": 227, "sig": "df, threshold_ms=1000, spikes=None"}, "analysis.format_summary": {"line": 230, "end": 253, "sig": "summary, threshold_ms=1000"}, "analysis.add_box_features": {"line": 257, "end": 270, "sig": "df"}, "analysis.box_stats": {"line": 273, "end": 290, "sig": "df"}, "analysis.box_region_table": {"line": 293, "end": 302, "sig": "df"}, "analysis.detect_spikes": {"line": 306, "end": 357, "sig": "df, min_defects=5, rate_ratio=2.0, z_score=3.0, defect_codes=None"}, "charts.set_korean_font": {"line": 14, "end": 24, "sig": ""}, "charts.plot_facility_defects": {"line": 27, "end": 49, "sig": "table, output_dir, filename='chart_facility_defects.png'"}, "charts.plot_daily_rate": {"line": 52, "end": 75, "sig": "daily, output_dir, filename='chart_daily_defect_rate.png'"}, "writer.ensure_dir": {"line": 11, "end": 15, "sig": "path"}, "writer.save_csv": {"line": 18, "end": 24, "sig": "df, output_dir, filename, index=False"}, "writer.save_text": {"line": 27, "end": 32, "sig": "text, output_dir, filename"}}, "edges": [{"a": "main.run", "b": "loader.setup_logger", "line": 33, "code": "loader.setup_logger(out, config['run_log_file'])"}, {"a": "main.run", "b": "loader.load_dataset", "line": 38, "code": "loader.load_dataset(config)"}, {"a": "main.run", "b": "writer.save_csv", "line": 40, "code": "save_csv(full, out, 'all_facility_log.csv')"}, {"a": "main.run", "b": "analysis.facility_defect_table", "line": 44, "code": "analysis.facility_defect_table(df)"}, {"a": "main.run", "b": "analysis.daily_facility_summary", "line": 46, "code": "analysis.daily_facility_summary(df)"}, {"a": "main.run", "b": "analysis.facility_summary", "line": 49, "code": "analysis.facility_summary(df)"}, {"a": "main.run", "b": "analysis.category_table", "line": 52, "code": "analysis.category_table(df)"}, {"a": "main.run", "b": "analysis.camera_summary", "line": 54, "code": "analysis.camera_summary(df)"}, {"a": "main.run", "b": "analysis.find_anomalies", "line": 58, "code": "analysis.find_anomalies(full, thr)"}, {"a": "main.run", "b": "analysis.box_stats", "line": 60, "code": "analysis.box_stats(df)"}, {"a": "main.run", "b": "analysis.box_region_table", "line": 61, "code": "analysis.box_region_table(df)"}, {"a": "main.run", "b": "analysis.detect_spikes", "line": 65, "code": "analysis.detect_spikes(df, spike_cfg['min_defects'], spike_cfg['rate_ratio'], spike_cfg['z_score'])"}, {"a": "main.run", "b": "writer.save_csv", "line": 69, "code": "save_csv(table, out, name)"}, {"a": "main.run", "b": "analysis.filter_records", "line": 74, "code": "analysis.filter_records(full, f['facilities'], f['start_date'], f['end_date'], f['defect_codes'])"}, {"a": "main.run", "b": "writer.save_csv", "line": 76, "code": "save_csv(picked, out, 'filtered_records.csv')"}, {"a": "main.run", "b": "charts.plot_facility_defects", "line": 83, "code": "charts.plot_facility_defects(fac_defect, out)"}, {"a": "main.run", "b": "charts.plot_daily_rate", "line": 85, "code": "charts.plot_daily_rate(daily, out)"}, {"a": "main.run", "b": "analysis.format_summary", "line": 88, "code": "analysis.format_summary(analysis.build_summary(df, thr, spikes), thr)"}, {"a": "main.run", "b": "analysis.build_summary", "line": 88, "code": "analysis.build_summary(df, thr, spikes)"}, {"a": "main.run", "b": "writer.save_text", "line": 89, "code": "save_text(summary_text + '\\n', out, 'summary.txt')"}, {"a": "main.main", "b": "main.parse_args", "line": 96, "code": "parse_args(argv)"}, {"a": "main.main", "b": "config.load_config", "line": 108, "code": "load_config(args.config, overrides)"}, {"a": "main.main", "b": "main.run", "line": 110, "code": "run(config)"}, {"a": "main.<module>", "b": "main.main", "line": 118, "code": "main()"}, {"a": "app.<module>", "b": "app.parse_args", "line": 25, "code": "parse_args()"}, {"a": "app.<module>", "b": "config.load_config", "line": 26, "code": "load_config(ARGS.config, {'input_dir': ARGS.input_dir, 'output_dir': ARGS.output_dir, 'process_ms_threshold': ARGS.process_ms_threshold})"}, {"a": "app.<module>", "b": "loader.setup_logger", "line": 34, "code": "loader.setup_logger(CONFIG['output_dir'], 'dash_run_log.txt')"}, {"a": "app.<module>", "b": "loader.load_dataset", "line": 35, "code": "loader.load_dataset(CONFIG)"}, {"a": "app.<module>", "b": "app.card", "line": 112, "code": "card('검사 수', 'v-inspections')"}, {"a": "app.<module>", "b": "app.card", "line": 113, "code": "card('불량 수', 'v-defects')"}, {"a": "app.<module>", "b": "app.card", "line": 114, "code": "card('불량률', 'v-rate')"}, {"a": "app.<module>", "b": "app.card", "line": 115, "code": "card(f'이상 기록 수 (D99 / >{THRESHOLD:g}ms)', 'v-anomalies')"}, {"a": "app.<module>", "b": "app.section", "line": 120, "code": "section('시설별 불량 종류 건수', dcc.Graph(id='g-facility-defect'))"}, {"a": "app.<module>", "b": "app.section", "line": 121, "code": "section('날짜별 불량률 추이', dcc.Graph(id='g-daily-rate'))"}, {"a": "app.<module>", "b": "app.section", "line": 125, "code": "section('시설 x 불량 종류 건수', table('t-facility-defect'))"}, {"a": "app.<module>", "b": "app.table", "line": 125, "code": "table('t-facility-defect')"}, {"a": "app.<module>", "b": "app.section", "line": 126, "code": "section(f'이상 기록 목록 (판정 불가 D99 또는 처리 시간 > {THRESHOLD:g}ms)', html.Div('시설·날짜 조건만 적용됩니다.', className='note'), table('t-anomalies'))"}, {"a": "app.<module>", "b": "app.table", "line": 128, "code": "table('t-anomalies')"}, {"a": "app.<module>", "b": "app.section", "line": 132, "code": "section('불량 위치 분포 (박스 중심점, 사진 1280x1024)', dcc.Graph(id='g-box-scatter'))"}, {"a": "app.<module>", "b": "app.section", "line": 133, "code": "section('불량 종류별 박스 평균 크기·위치', table('t-box-stats'), html.Br(), table('t-box-region'))"}, {"a": "app.<module>", "b": "app.table", "line": 133, "code": "table('t-box-stats')"}, {"a": "app.<module>", "b": "app.table", "line": 133, "code": "table('t-box-region')"}, {"a": "app.<module>", "b": "app.section", "line": 137, "code": "section('불량 급증 감지 (날짜·시설·카메라)', html.Div(f\"기준: 그날 불량 {CONFIG['spike']['min_defects']}건 이상, 같은 카메라의 나머지 날 평균 불량률의 {CONFIG['spike']['rate_ratio']:g}배 이상, z ≥ {CONFIG['spike']['z_score']:g}. 시설·날짜·불량 종류 조건을 모두 적용합니다.\", className='note'), table('t-spikes'))"}, {"a": "app.<module>", "b": "app.table", "line": 143, "code": "table('t-spikes')"}, {"a": "app.update", "b": "analysis.filter_records", "line": 181, "code": "analysis.filter_records(DF, facilities or ['__none__'], start_date, end_date)"}, {"a": "app.update", "b": "analysis.filter_records", "line": 182, "code": "analysis.filter_records(scoped, defect_codes=defects)"}, {"a": "app.update", "b": "analysis.facility_summary", "line": 185, "code": "analysis.facility_summary(scoped, defects)"}, {"a": "app.update", "b": "analysis.find_anomalies", "line": 187, "code": "analysis.find_anomalies(scoped, THRESHOLD)"}, {"a": "app.update", "b": "analysis.facility_defect_table", "line": 190, "code": "analysis.facility_defect_table(scoped, defects)"}, {"a": "app.update", "b": "analysis.daily_facility_summary", "line": 197, "code": "analysis.daily_facility_summary(scoped, defects)"}, {"a": "app.update", "b": "analysis.add_box_features", "line": 204, "code": "analysis.add_box_features(picked)"}, {"a": "app.update", "b": "analysis.detect_spikes", "line": 214, "code": "analysis.detect_spikes(scoped, spike['min_defects'], spike['rate_ratio'], spike['z_score'], defect_codes=defects)"}, {"a": "app.update", "b": "app.to_table", "line": 224, "code": "to_table(fac_defect)"}, {"a": "app.update", "b": "app.to_table", "line": 225, "code": "to_table(anomalies[ANOMALY_COLUMNS])"}, {"a": "app.update", "b": "app.to_table", "line": 227, "code": "to_table(analysis.box_stats(picked))"}, {"a": "app.update", "b": "analysis.box_stats", "line": 227, "code": "analysis.box_stats(picked)"}, {"a": "app.update", "b": "app.to_table", "line": 228, "code": "to_table(analysis.box_region_table(picked))"}, {"a": "app.update", "b": "analysis.box_region_table", "line": 228, "code": "analysis.box_region_table(picked)"}, {"a": "app.update", "b": "app.to_table", "line": 229, "code": "to_table(spikes)"}, {"a": "config._deep_update", "b": "config._deep_update", "line": 29, "code": "_deep_update(base[key], value)"}, {"a": "config.load_config", "b": "config._deep_update", "line": 45, "code": "_deep_update(config, json.load(f))"}, {"a": "loader.setup_logger", "b": "writer.ensure_dir", "line": 28, "code": "ensure_dir(output_dir)"}, {"a": "loader.read_all_logs", "b": "loader.find_log_files", "line": 92, "code": "find_log_files(input_dir, prefix)"}, {"a": "loader.read_all_logs", "b": "loader.read_log_file", "line": 93, "code": "read_log_file(path)"}, {"a": "loader.load_dataset", "b": "loader.read_all_logs", "line": 136, "code": "read_all_logs(input_dir, config['log_file_prefix'])"}, {"a": "loader.load_dataset", "b": "loader.merge_logs", "line": 137, "code": "merge_logs(frames)"}, {"a": "loader.load_dataset", "b": "loader.read_defect_codes", "line": 138, "code": "read_defect_codes(input_dir / config['defect_code_file'])"}, {"a": "loader.load_dataset", "b": "loader.attach_defect_info", "line": 139, "code": "attach_defect_info(logs, codes)"}, {"a": "analysis.defect_mask", "b": "analysis._as_list", "line": 43, "code": "_as_list(defect_codes)"}, {"a": "analysis._rate_table", "b": "analysis.defect_mask", "line": 79, "code": "defect_mask(df, defect_codes)"}, {"a": "analysis._rate_table", "b": "analysis.defect_rate", "line": 87, "code": "defect_rate(out[COL_DEFECTS], out[COL_INSPECTIONS])"}, {"a": "analysis.facility_summary", "b": "analysis._rate_table", "line": 100, "code": "_rate_table(df, ['facility'], [COL_FACILITY], defect_codes)"}, {"a": "analysis.facility_summary", "b": "analysis.defect_rate", "line": 106, "code": "defect_rate(total[COL_DEFECTS], total[COL_INSPECTIONS])"}, {"a": "analysis.facility_defect_table", "b": "analysis.defect_mask", "line": 113, "code": "defect_mask(df, defect_codes)"}, {"a": "analysis.category_table", "b": "analysis.defect_mask", "line": 133, "code": "defect_mask(df, defect_codes)"}, {"a": "analysis.category_table", "b": "analysis.defect_rate", "line": 136, "code": "defect_rate(out['불량수'], out['불량수'].sum())"}, {"a": "analysis.defect_type_counts", "b": "analysis.defect_mask", "line": 142, "code": "defect_mask(df, defect_codes)"}, {"a": "analysis.daily_facility_summary", "b": "analysis._rate_table", "line": 154, "code": "_rate_table(_with_date(df), ['date', 'facility'], [COL_DATE, COL_FACILITY], defect_codes)"}, {"a": "analysis.daily_facility_summary", "b": "analysis._with_date", "line": 154, "code": "_with_date(df)"}, {"a": "analysis.camera_summary", "b": "analysis._rate_table", "line": 159, "code": "_rate_table(df, ['facility', 'camera_id'], [COL_FACILITY, COL_CAMERA], defect_codes)"}, {"a": "analysis.filter_records", "b": "analysis._as_list", "line": 184, "code": "_as_list(facilities)"}, {"a": "analysis.filter_records", "b": "analysis._as_list", "line": 191, "code": "_as_list(defect_codes)"}, {"a": "analysis.filter_records", "b": "analysis.defect_mask", "line": 192, "code": "defect_mask(df, defect_codes)"}, {"a": "analysis.build_summary", "b": "analysis.defect_mask", "line": 200, "code": "defect_mask(df)"}, {"a": "analysis.build_summary", "b": "analysis.facility_summary", "line": 201, "code": "facility_summary(df)"}, {"a": "analysis.build_summary", "b": "analysis.defect_type_counts", "line": 203, "code": "defect_type_counts(df)"}, {"a": "analysis.build_summary", "b": "analysis.defect_rate", "line": 208, "code": "defect_rate(defects, total)"}, {"a": "analysis.build_summary", "b": "analysis.find_anomalies", "line": 213, "code": "find_anomalies(df, threshold_ms)"}, {"a": "analysis.box_stats", "b": "analysis.add_box_features", "line": 275, "code": "add_box_features(df)"}, {"a": "analysis.box_region_table", "b": "analysis.add_box_features", "line": 295, "code": "add_box_features(df)"}, {"a": "analysis.detect_spikes", "b": "analysis._with_date", "line": 317, "code": "_with_date(df)"}, {"a": "analysis.detect_spikes", "b": "analysis.defect_mask", "line": 317, "code": "defect_mask(df, defect_codes)"}, {"a": "analysis.detect_spikes", "b": "analysis.defect_rate", "line": 351, "code": "defect_rate(out[COL_DEFECTS], out[COL_INSPECTIONS])"}, {"a": "charts.plot_facility_defects", "b": "charts.set_korean_font", "line": 35, "code": "set_korean_font()"}, {"a": "charts.plot_facility_defects", "b": "writer.ensure_dir", "line": 46, "code": "ensure_dir(output_dir)"}, {"a": "charts.plot_daily_rate", "b": "charts.set_korean_font", "line": 60, "code": "set_korean_font()"}, {"a": "charts.plot_daily_rate", "b": "writer.ensure_dir", "line": 72, "code": "ensure_dir(output_dir)"}, {"a": "writer.save_csv", "b": "writer.ensure_dir", "line": 22, "code": "ensure_dir(output_dir)"}, {"a": "writer.save_text", "b": "writer.ensure_dir", "line": 29, "code": "ensure_dir(output_dir)"}]};
+const D={
+"main.<module>":"파일을 직접 실행하면 main()을 부르는 시작 지점","main.parse_args":"명령 인자를 읽는다 (S2)","main.run":"F1~F11 처리를 순서대로 실행한다","main.main":"인자와 설정을 준비하고 run()을 부른다. 오류가 나면 기록하고 1을 돌려준다",
+"app.<module>":"앱을 켤 때 한 번 실행되는 코드. 설정과 로그를 읽고 화면 배치를 만든다","app.parse_args":"명령 인자를 읽는다","app.card":"요약 숫자 카드를 만든다 (D3)","app.table":"DataTable 표를 만든다 (D5)","app.section":"제목이 있는 화면 구역을 만든다","app.to_table":"DataFrame을 화면 표의 data와 columns로 바꾼다","app.update":"화면 선택이 바뀔 때 Dash가 부르는 콜백. 모든 결과를 다시 계산한다 (D6)",
+"config._deep_update":"중첩된 설정을 겹쳐 쓴다. 안쪽 dict를 만나면 자기 자신을 다시 부른다","config.load_config":"기본값, 설정 파일, 명령 인자 순서로 합친 설정을 돌려준다 (S2)",
+"loader.setup_logger":"실행 로그를 화면과 파일에 남기도록 설정한다 (S4)","loader.find_log_files":"시설 로그 CSV 파일을 찾는다 (F1)","loader.read_log_file":"로그 파일 하나를 읽고 검사한다. 문제가 있으면 None (S4)","loader.read_all_logs":"시설 로그를 모두 읽어 목록으로 돌려준다 (F1)","loader.merge_logs":"로그를 합치고 검사 시각 순으로 정렬한다 (F2)","loader.read_defect_codes":"불량코드표를 읽는다","loader.attach_defect_info":"로그에 불량 이름, 분류, 심각도를 붙인다 (F3)","loader.load_dataset":"읽기, 합치기, 불량코드 결합을 묶어 실행한다",
+"analysis._as_list":"값을 리스트로 통일한다","analysis.defect_mask":"각 기록이 불량(NG)인지 판정한다","analysis.defect_rate":"불량률(%)을 계산한다","analysis._rate_table":"기준 열별 검사 수, 불량 수, 불량률을 집계한다","analysis._with_date":"timestamp에서 date 열을 만든다","analysis.facility_summary":"시설별 검사 수와 불량률 (F4)","analysis.facility_defect_table":"시설 x 불량 종류 건수 표 (F5)","analysis.category_table":"불량 분류별 건수와 비율 (F5)","analysis.defect_type_counts":"불량 종류별 건수","analysis.daily_facility_summary":"날짜별·시설별 불량률 (F6)","analysis.camera_summary":"카메라별 불량률 (F7)","analysis.find_anomalies":"D99 또는 처리 시간이 긴 기록을 찾는다 (F8)","analysis.filter_records":"시설, 날짜, 불량 종류로 기록을 고른다 (F9)","analysis.build_summary":"요약 지표를 dict로 만든다 (F11)","analysis.format_summary":"요약 dict를 글로 바꾼다 (F11)","analysis.add_box_features":"불량 박스의 크기와 위치를 계산한다 (O1)","analysis.box_stats":"불량 종류별 박스 평균 크기와 위치 (O1)","analysis.box_region_table":"불량 종류 x 3x3 구역 건수 표 (O1)","analysis.detect_spikes":"평소보다 불량이 크게 늘어난 날을 찾는다 (O2)",
+"charts.set_korean_font":"matplotlib에 한글 글꼴을 지정한다","charts.plot_facility_defects":"시설별 불량 종류 막대그래프 (F10)","charts.plot_daily_rate":"날짜별 불량률 꺾은선그래프 (F10)",
+"writer.ensure_dir":"폴더가 없으면 만든다 (S3)","writer.save_csv":"DataFrame을 CSV로 저장한다 (S5)","writer.save_text":"글을 텍스트 파일로 저장한다 (S5)"};
+const FN={main:"main.py",app:"app.py",config:"vision_log/config.py",loader:"vision_log/loader.py",analysis:"vision_log/analysis.py",charts:"vision_log/charts.py",writer:"vision_log/writer.py"};
+const mod=k=>k.split(".")[0],nm=k=>k.endsWith("<module>")?(mod(k)=="main"?"시작 지점":"시작 코드"):k.slice(k.indexOf(".")+1);
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const P=[],seen={};
+G.edges.forEach(e=>{const k=e.a+"|"+e.b;if(!seen[k]){seen[k]={a:e.a,b:e.b,sites:[]};P.push(seen[k])}seen[k].sites.push(e)});
+const outs=k=>P.filter(p=>p.a==k),ins=k=>P.filter(p=>p.b==k);
+function reach(k,up,s=new Set()){s.add(k);(up?ins(k):outs(k)).forEach(p=>{const q=up?p.a:p.b;if(!s.has(q))reach(q,up,s)});return s}
+const RM=reach("main.<module>",false),RA=reach("app.<module>",false);reach("app.update",false,RA);
+const tw=s=>[...s].reduce((w,c)=>w+(c.charCodeAt(0)>255?11.5:6.95),0);
+function nodeSvg(k,x,y,w,h,cls,label,sub){
+ const t=label||nm(k),fn=!!D[k];
+ const dots=cls.includes("map")&&!["main","app"].includes(mod(k))?`${RM.has(k)?`<circle class="dm" cx="${x+w-8}" cy="${y+h/2-4}" r="3"/>`:""}${RA.has(k)?`<circle class="da" cx="${x+w-8}" cy="${y+h/2+4}" r="3"/>`:""}`:"";
+ const pill=cls.includes("pill");
+ return `<g class="n ${cls}" ${fn?`data-k="${esc(k)}" tabindex="0" role="button" aria-label="${esc(FN[mod(k)]+" "+nm(k))}"`:""}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${pill?h/2:3}"/>${sub?`<text class="s" x="${x+8}" y="${y+12}">${esc(sub)}</text><text x="${x+8}" y="${y+27}">${esc(t)}</text>`:`<text x="${x+(pill?w/2:8)}" y="${y+h/2+4}" ${pill?'text-anchor="middle"':""}>${esc(t)}</text>`}${dots}</g>`}
+const mk=id=>`<defs>${["main","app","int"].map(c=>`<marker id="${id}${c}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--${c})"/></marker>`).join("")}</defs>`;
+const ec=a=>["main","app"].includes(mod(a))?mod(a):"int";
+
+/* ---- whole map ---- */
+(function(){
+ const X=[300,536,742,906,1052],W=[190,166,122,106,84],R=34,H=23;
+ const lanes=[["config",1,[["load_config",0,0],["_deep_update",1,0]]],
+ ["loader",5,[["load_dataset",0,1.5],["setup_logger",0,4],["read_all_logs",1,0],["merge_logs",1,1],["read_defect_codes",1,2],["attach_defect_info",1,3],["find_log_files",2,0],["read_log_file",2,1]]],
+ ["analysis",10,[["format_summary",0,0],["build_summary",0,1],["daily_facility_summary",0,2],["camera_summary",0,3],["facility_defect_table",0,4],["category_table",0,5],["detect_spikes",0,6],["filter_records",0,7],["box_stats",0,8],["box_region_table",0,9],["find_anomalies",1,.5],["facility_summary",1,1.5],["defect_type_counts",1,2.5],["_with_date",1,4.5],["add_box_features",1,8.5],["_rate_table",2,3],["defect_rate",3,2],["defect_mask",3,5],["_as_list",4,6]]],
+ ["charts",2,[["plot_facility_defects",0,0],["plot_daily_rate",0,1],["set_korean_font",1,.5]]],
+ ["writer",2,[["save_csv",0,0],["save_text",0,1],["ensure_dir",3,.5]]]];
+ const pos={};let y=6,boxes="";
+ lanes.forEach(([m,rows,ns])=>{const h=rows*R+30;boxes+=`<rect class="lane" x="288" y="${y}" width="862" height="${h}" rx="5"/><text class="t" x="300" y="${y+17}">${FN[m]}</text>`;
+  ns.forEach(([n,c,r])=>pos[m+"."+n]={x:X[c],y:y+26+r*R,w:W[c],h:H,c});y+=h+12});
+ const TH=y;
+ const ent=(m,ty,h,list)=>{boxes+=`<rect class="lane" x="6" y="${ty}" width="232" height="${h}" rx="5"/><text class="t" x="16" y="${ty+18}">${FN[m]}</text>`;list.forEach(([n,c,r])=>pos[m+"."+n]={x:c?138:16,y:ty+28+r*R,w:c?88:92,h:H,c:-2+c})};
+ ent("main",170,114,[["<module>",0,0],["parse_args",0,1],["main",1,0],["run",1,1.5]]);
+ ent("app",500,236,[["<module>",1,.5],["parse_args",0,0],["card",0,1],["section",0,2],["table",0,3],["update",1,4.5],["to_table",0,5.1]]);
+ boxes+=`<text class="s" x="16" y="664">화면 선택이 바뀌면</text><text class="s" x="16" y="677">Dash가 호출 →</text>`;
+ let ed="";
+ P.forEach(p=>{const a=pos[p.a],b=pos[p.b],c=ec(p.a);if(!a||!b)return;let d;const ay=a.y+a.h/2,by=b.y+b.h/2;
+  if(p.a==p.b){const x=a.x+a.w;d=`M${x} ${ay-6}c22 -6 22 18 1 12`}
+  else if(p.a=="loader.setup_logger"){d=`M${a.x+a.w} ${ay}H1148Q1158 ${ay} 1158 ${ay+10}V${by-10}Q1158 ${by} 1148 ${by}H${b.x+b.w+2}`}
+  else if(mod(p.a)==mod(p.b)&&a.c<0){
+   if(p.a=="main.main"&&p.b=="main.run")d=`M${a.x+a.w/2} ${a.y+a.h}V${b.y-2}`;
+   else if(b.x<a.x)d=`M${a.x} ${ay}C${a.x-18} ${ay} ${b.x+b.w+18} ${by} ${b.x+b.w+2} ${by}`;
+   else d=`M${a.x+a.w} ${ay}L${b.x-2} ${by}`}
+  else{const sx=a.x+a.w,tx=b.x-2;
+   if(a.c<0&&b.c==1){d=`M${sx} ${ay}C${sx+42} ${ay} 262 ${by} 300 ${by}H${tx}`}
+   else if(a.c>=0&&b.c-a.c>1){const far=X[b.c-1]+W[b.c-1]+2;const ux=p.a.startsWith("charts")?sx+10:Math.max(sx,far);const g=(tx-ux)/2;d=`M${sx} ${ay}H${ux}C${ux+g} ${ay} ${tx-g} ${by} ${tx} ${by}`}
+   else{const g=Math.max(22,(tx-sx)*.5);d=`M${sx} ${ay}C${sx+g} ${ay} ${tx-g} ${by} ${tx} ${by}`}}
+  ed+=`<path class="e ${c}" data-a="${esc(p.a)}" data-b="${esc(p.b)}" d="${d}" marker-end="url(#m${c})"/>`});
+ const nodes=Object.entries(pos).map(([k,o])=>nodeSvg(k,o.x,o.y,o.w,o.h,"map")).join("");
+ document.querySelector("#map .scroll").innerHTML=`<svg viewBox="0 0 1166 ${TH}" role="group" aria-label="전체 함수 호출 지도">${mk("m")}${boxes}${ed}${nodes}</svg>`;
+})();
+
+/* ---- column figures ---- */
+let fid=0;
+function grid(el,nodes,edges,opt){
+ const id="d"+(fid++),pit=opt.pitch||36,gap=opt.gap||60,by={};
+ const cw=[];let maxR=0;
+ nodes.forEach(n=>{n.w=Math.ceil(Math.max(tw(n.label),n.sub?n.sub.length*6.4:0))+(n.cls=="pill"?26:18);n.h=n.sub?35:24;cw[n.c]=Math.max(cw[n.c]||0,n.w);maxR=Math.max(maxR,n.r);by[n.id]=n});
+ edges.forEach(e=>{if(e.via!=null)maxR=Math.max(maxR,e.via)});
+ const cx=[];let x=8;for(let i=0;i<cw.length;i++){cx[i]=x;x+=(cw[i]||0)+gap}
+ const W=x-gap+36,top=24,RY=r=>top+r*pit,H=RY(maxR)+26;
+ nodes.forEach(n=>{n.x=cx[n.c];n.y=RY(n.r)});
+ let s="";
+ edges.forEach(e=>{const a=by[e.a],b=by[e.b];let d;
+  if(e.a==e.b){d=`M${a.x+a.w} ${a.y-6}c24 -6 24 18 2 12`;}
+  else if(a.c==b.c){d=`M${a.x+Math.min(a.w,b.w)/2} ${a.y+a.h/2}V${b.y-b.h/2-2}`}
+  else{const sx=a.x+a.w,tx=b.x-2,L=cx[b.c]-gap;
+   if(e.via!=null){const vy=RY(e.via),m=cx[a.c+1]-4,q=Math.max(L,m+8);d=`M${sx} ${a.y}C${sx+16} ${a.y} ${m-22} ${vy} ${m} ${vy}H${q}C${q+gap*.5} ${vy} ${tx-gap*.5} ${b.y} ${tx} ${b.y}`}
+   else if(b.c-a.c>1&&e.early){const m=cx[a.c+1]-4;d=`M${sx} ${a.y}C${sx+(m-sx)*.55} ${a.y} ${m-(m-sx)*.55} ${b.y} ${m} ${b.y}H${tx}`}
+   else{const u=Math.max(sx,L),g=(tx-u)/2;d=`M${sx} ${a.y}H${u}C${u+g} ${a.y} ${tx-g} ${b.y} ${tx} ${b.y}`}}
+  s+=`<path class="e ${e.c}" data-a="${esc(e.a)}" data-b="${esc(e.b)}" d="${d}" marker-end="url(#${id}${e.c})"/>`});
+ nodes.forEach(n=>{s+=nodeSvg(n.k||n.id,n.x,n.y-n.h/2,n.w,n.h,n.cls,n.label,n.sub)});
+ el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;min-width:${Math.min(W,Math.max(300,W*.86))}px;height:auto" role="group" aria-label="${esc(opt.label)}">${mk(id)}${s}</svg>`;
+}
+/* spec lines: "col row name"; $변수 !결과물 otherwise function key (@ = analysis.) */
+function flow(el,ns,es,c,label){
+ const A=t=>t.replace("@","analysis.");
+ const nodes=ns.trim().split("\n").map(l=>{const [c,r,...q]=l.trim().split(" "),t=A(q.join(" ")),o={id:t,c:+c,r:+r};
+  if(t[0]=="$"){o.label=t.slice(1);o.cls="pill"}else if(t[0]=="!"){o.label=t.slice(1);o.cls="out"}else{const [k,n]=t.split("#");o.k=k;o.label=nm(k)+(n?" "+n:"");o.cls="own"}return o});
+ const edges=[];es.trim().split("\n").forEach(l=>{const [h,opt]=l.trim().split(" ~ ");const ch=h.split(" > ").map(A);for(let i=0;i<ch.length-1;i++){const e={a:ch[i],b:ch[i+1],c};if(opt=="early")e.early=1;else if(opt)e.via=+opt;edges.push(e)}});
+ grid(el,nodes,edges,{gap:38,label})}
+flow(document.getElementById("f-run"),`
+0 5 loader.load_dataset
+1 5 $df
+1 10 $full
+2 0 @facility_summary
+2 1 @category_table
+2 2 @camera_summary
+2 3 @box_stats
+2 4 @box_region_table
+2 5 @facility_defect_table
+2 6 @daily_facility_summary
+2 7 @detect_spikes
+2 9 @find_anomalies
+2 10 @filter_records
+3 5 $fac_defect
+3 6 $daily
+3 7 $spikes
+3 10 $picked
+4 2 $tables
+4 5 charts.plot_facility_defects
+4 6 charts.plot_daily_rate
+4 8 @build_summary
+5 2 writer.save_csv
+5 4.6 !막대그래프 PNG
+5 5.6 !꺾은선그래프 PNG
+5 8 @format_summary
+6 2 !CSV 파일들
+6 8 $summary_text
+7 8 writer.save_text
+7 9.2 !summary.txt`,`
+loader.load_dataset > $df > @facility_summary > $tables
+$df > @category_table > $tables
+$df > @camera_summary > $tables
+$df > @box_stats > $tables
+$df > @box_region_table > $tables
+$df > @facility_defect_table > $fac_defect > $tables
+$fac_defect > charts.plot_facility_defects > !막대그래프 PNG
+$df > @daily_facility_summary > $daily > $tables
+$daily > charts.plot_daily_rate > !꺾은선그래프 PNG
+$df > @detect_spikes > $spikes > $tables
+$spikes > @build_summary
+$df > @build_summary ~ early
+@build_summary > @format_summary > $summary_text > writer.save_text > !summary.txt
+$df > $full > @find_anomalies > $tables
+$tables > writer.save_csv > !CSV 파일들
+$full > @filter_records > $picked > writer.save_csv
+$full > writer.save_csv ~ 11`,"main","run 함수의 데이터 흐름");
+flow(document.getElementById("f-upd"),`
+0 2.6 $DF
+0 3.8 $시설·날짜 선택
+1 3.2 @filter_records#①
+2 3.2 $scoped
+2 7.6 $불량 종류 선택
+3 0 @facility_summary
+3 1 @daily_facility_summary
+3 2 @find_anomalies
+3 3.2 @facility_defect_table
+3 4.4 @detect_spikes
+3 6.6 @filter_records#②
+4 0 $total
+4 1 $daily
+4 2 $anomalies
+4 3.2 $fac_defect
+4 4.4 $spikes
+4 6.6 $picked
+5 0 !카드: 검사 수·불량 수·불량률
+5 1 !꺾은선그래프
+5 2 !카드: 이상 기록 수
+5 3.2 !막대그래프
+5 5.6 @box_stats
+5 6.6 @box_region_table
+5 7.6 @add_box_features
+6 4.4 app.to_table
+6 7.6 $boxes
+7 4.4 !화면 표 5개
+7 7.6 !산점도`,`
+$DF > @filter_records#①
+$시설·날짜 선택 > @filter_records#①
+@filter_records#① > $scoped > @filter_records#② > $picked
+$불량 종류 선택 > @filter_records#②
+$scoped > @facility_summary > $total > !카드: 검사 수·불량 수·불량률
+$scoped > @find_anomalies > $anomalies > !카드: 이상 기록 수
+$anomalies > app.to_table ~ 2.6
+$scoped > @facility_defect_table > $fac_defect > !막대그래프
+$fac_defect > app.to_table ~ 3.8
+$scoped > @daily_facility_summary > $daily > !꺾은선그래프
+$scoped > @detect_spikes > $spikes > app.to_table
+$picked > @add_box_features > $boxes > !산점도
+$picked > @box_stats > app.to_table
+$picked > @box_region_table > app.to_table
+app.to_table > !화면 표 5개`,"app","update 함수의 데이터 흐름");
+const T={main:"main()은 인자와 설정을 준비하고, run()이 다른 파일의 함수 18개를 부릅니다. 다른 파일에서 main.py를 부르는 곳은 없습니다.",
+app:"시작 코드와 update()는 서로 부르지 않습니다. 시작 코드가 읽어 둔 DF, CONFIG, THRESHOLD를 update()가 전역 변수로 씁니다.",
+config:"밖에서 쓰는 함수는 load_config() 하나입니다. _deep_update()는 중첩 설정을 합치려고 자기 자신을 다시 부릅니다.",
+loader:"load_dataset()이 읽기 → 합치기 → 코드표 읽기 → 결합을 차례로 부릅니다. setup_logger()는 이 흐름과 따로 불립니다.",
+analysis:"밖에서 불리는 집계 함수들이 _rate_table(), defect_mask(), defect_rate()를 공유합니다. format_summary()는 다른 함수를 부르지 않고 build_summary()의 결과만 받습니다.",
+charts:"두 그래프 함수의 구조가 같습니다. 글꼴을 지정하고, 그래프를 그리고, ensure_dir()로 폴더를 확인한 뒤 저장합니다.",
+writer:"저장 함수 두 개와 다른 파일의 함수 세 개가 모두 ensure_dir()로 모입니다."};
+const col=(c,r0,ks)=>ks.split(" ").map((k,i)=>[k,c,r0+i]);
+const AN=ks=>ks.split(" ").map(k=>"analysis."+k).join(" ");
+const LAY={
+main:[["main.<module>",0,8.5],["main.main",1,8.5],["main.parse_args",2,6.5],["config.load_config",2,7.5],["main.run",2,8.5],...col(3,0,"loader.setup_logger loader.load_dataset "+AN("facility_defect_table daily_facility_summary facility_summary category_table camera_summary find_anomalies box_stats box_region_table detect_spikes filter_records build_summary format_summary")+" charts.plot_facility_defects charts.plot_daily_rate writer.save_csv writer.save_text")],
+app:[["app.<module>",0,3],["app.update",0,11.5],...col(1,0,"app.parse_args app.card app.section app.table config.load_config loader.setup_logger loader.load_dataset"),...col(1,7.4,AN("filter_records facility_summary find_anomalies facility_defect_table daily_facility_summary add_box_features detect_spikes box_stats box_region_table")+" app.to_table")],
+config:[["main.main",0,0],["app.<module>",0,1],["config.load_config",1,.5],["config._deep_update",2,.5]],
+loader:[["main.run",0,1],["app.<module>",0,2.5],["loader.load_dataset",1,1.2],["loader.setup_logger",1,4],...col(2,0,"loader.read_all_logs loader.merge_logs loader.read_defect_codes loader.attach_defect_info writer.ensure_dir"),...col(3,0,"loader.find_log_files loader.read_log_file")],
+analysis:[["main.run",0,3],["app.update",0,6],...col(1,0,AN("format_summary build_summary daily_facility_summary camera_summary facility_defect_table category_table detect_spikes filter_records box_stats box_region_table")),["analysis.find_anomalies",2,.5],["analysis.facility_summary",2,1.5],["analysis.defect_type_counts",2,2.5],["analysis._with_date",2,4.5],["analysis.add_box_features",2,8.5],["analysis._rate_table",3,3],["analysis.defect_rate",4,2],["analysis.defect_mask",4,5],["analysis._as_list",5,6]],
+charts:[["main.run",0,.5],["charts.plot_facility_defects",1,0],["charts.plot_daily_rate",1,1],["charts.set_korean_font",2,0],["writer.ensure_dir",2,1]],
+writer:[["main.run",0,.5],["loader.setup_logger",0,2],["charts.plot_facility_defects",0,3],["charts.plot_daily_rate",0,4],["writer.save_csv",1,0],["writer.save_text",1,1],["writer.ensure_dir",2,2]]};
+const list=document.getElementById("filelist");
+["main","app","config","loader","analysis","charts","writer"].forEach(m=>{
+ const own=Object.keys(D).filter(k=>mod(k)==m),es=P.filter(p=>mod(p.a)==m||mod(p.b)==m);
+ const nodes=LAY[m].map(([k,c,r])=>mod(k)==m?{id:k,c,r,label:nm(k),cls:"own"}:{id:k,c,r,label:nm(k),sub:mod(k)+".py",cls:"ext"});
+ const ids=new Set(nodes.map(n=>n.id));es.forEach(p=>{if(!ids.has(p.a)||!ids.has(p.b))console.error("missing",m,p.a,p.b)});
+ const div=document.createElement("div");div.className="file";div.id="file-"+m;
+ div.innerHTML=`<h3>${FN[m]}</h3><p>${T[m]}</p><figure><div class="scroll"></div><figcaption>함수 ${own.filter(k=>!k.includes("<")).length}개 · 들어오는 호출 ${es.filter(p=>mod(p.a)!=m).length} · 파일 안 호출 ${es.filter(p=>mod(p.a)==m&&mod(p.b)==m).length} · 나가는 호출 ${es.filter(p=>mod(p.b)!=m).length}${m=="config"?" · 되돌아오는 화살표는 자기 자신을 부르는 호출":""}</figcaption></figure>`;
+ list.appendChild(div);
+ const big=["main","app"].includes(m);
+ grid(div.querySelector(".scroll"),nodes,es.map(p=>({a:p.a,b:p.b,c:ec(p.a),early:m=="analysis"&&mod(p.a)!=m})),{pitch:m=="analysis"?38:42,gap:big?110:m=="analysis"?56:84,label:FN[m]+" 함수 연결"});
+});
+
+/* ---- facts ---- */
+const V=Object.keys(D).filter(k=>!["main","app"].includes(mod(k)));
+const both=V.filter(k=>RM.has(k)&&RA.has(k)),om=V.filter(k=>RM.has(k)&&!RA.has(k));
+const top4=V.map(k=>[k,ins(k).filter(p=>p.a!=k).length]).sort((a,b)=>b[1]-a[1]).slice(0,4);
+const L=k=>`<button class="lnk" data-go="${esc(k)}">${esc(nm(k))}</button>`;
+document.getElementById("facts").innerHTML=`<li><strong>가장 많은 함수가 부르는 함수</strong>${top4.map(([k,n])=>`${L(k)} ${n}곳`).join(", ")}</li><li><strong>두 실행 파일이 함께 쓰는 함수</strong>vision_log의 함수 ${V.length}개 중 ${both.length}개. 이 함수를 고치면 CSV 결과와 화면이 함께 바뀔 수 있습니다.</li><li><strong>main.py에서만 쓰는 함수 ${om.length}개</strong>${om.map(L).join(", ")}</li>`;
+
+/* ---- interaction ---- */
+let sel=null,mode="all";
+function paint(){
+ document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m==mode));
+ const up=sel&&reach(sel,true),dn=sel&&reach(sel,false),ms=mode=="all"?null:mode=="main"?RM:RA;
+ document.querySelectorAll("#map svg,#filelist svg").forEach(s=>{const inMap=!!s.closest("#map"),use=sel&&!!s.querySelector(`[data-k="${CSS.escape(sel)}"]`);
+  const ok=k=>(!inMap||!ms||ms.has(k))&&(!use||up.has(k)||dn.has(k));
+  s.querySelectorAll("g.n").forEach(n=>{n.classList.toggle("sel",n.dataset.k==sel);n.classList.toggle("dim",!ok(n.dataset.k))});
+  s.querySelectorAll("path.e").forEach(e=>{const {a,b}=e.dataset;const m=!inMap||!ms||(ms.has(a)&&ms.has(b));const on=use&&((up.has(a)&&up.has(b))||(dn.has(a)&&dn.has(b)));e.classList.toggle("on",!!on&&m);e.classList.toggle("dim",!m||(use&&!on))})});
+ document.querySelectorAll("#f-run g.n,#f-upd g.n").forEach(n=>n.classList.toggle("sel",!!sel&&n.dataset.k==sel));
+ const sh=document.getElementById("sheet");sh.hidden=!sel;if(!sel)return;
+ const f=G.funcs[sel],row=(p,k)=>`<li>${L(k)} <span class="mut">${FN[mod(k)]}</span>${p.sites.map(s=>`<br><code>${mod(p.a)}.py ${s.line}줄 ${esc(s.code.length>150?s.code.slice(0,150)+"…":s.code)}</code>`).join("")}</li>`;
+ const i=ins(sel),o=outs(sel);
+ const none=sel=="app.update"?"코드에서 직접 부르는 곳은 없습니다. 화면 선택이 바뀌면 Dash가 부릅니다.":"파일을 실행하면 시작됩니다.";
+ sh.firstElementChild.innerHTML=`<header><div style="min-width:0"><h3 style="overflow-wrap:anywhere">${esc(nm(sel))}${f?"("+esc(f.sig)+")":""}</h3><div class="mut">${FN[mod(sel)]}${f?" "+f.line+"~"+f.end+"줄":""} · ${esc(D[sel])}</div></div><button id="close">닫기</button></header><div class="two"><div><h4>이 함수를 부르는 곳 ${i.length}</h4><ul>${i.map(p=>row(p,p.a)).join("")||`<li>${none}</li>`}</ul></div><div><h4>이 함수가 부르는 함수 ${o.length}</h4><ul>${o.map(p=>row(p,p.b)).join("")||"<li>직접 만든 함수는 부르지 않습니다.</li>"}</ul></div></div>`;
+ sh.scrollTop=0}
+document.addEventListener("click",e=>{const m=e.target.closest("[data-m]"),n=e.target.closest("g.n[data-k]"),go=e.target.closest("[data-go]");
+ if(m)mode=m.dataset.m;else if(n)sel=sel==n.dataset.k?null:n.dataset.k;else if(go)sel=go.dataset.go;else if(e.target.id=="close"||e.target.closest("svg"))sel=null;else return;paint()});
+document.addEventListener("keydown",e=>{if(e.key=="Escape"&&sel){sel=null;paint()}else if((e.key=="Enter"||e.key==" ")&&e.target.matches&&e.target.matches("g.n[data-k]")){e.preventDefault();sel=e.target.dataset.k;paint()}});
+paint();
+</script>
+
+</body></html>

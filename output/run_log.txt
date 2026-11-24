@@ -1,0 +1,21 @@
+2026-11-24 16:21:23 [INFO] 처리 시작 - 입력: ., 출력: output, 처리 시간 기준: 1000ms
+2026-11-24 16:21:23 [INFO] 시설 로그 파일 3개 발견: facility_A_log.csv, facility_B_log.csv, facility_C_log.csv
+2026-11-24 16:21:23 [INFO] 읽음: facility_A_log.csv (1966줄)
+2026-11-24 16:21:23 [INFO] 읽음: facility_B_log.csv (1352줄)
+2026-11-24 16:21:23 [INFO] 읽음: facility_C_log.csv (1880줄)
+2026-11-24 16:21:23 [INFO] 합친 로그: 5198줄
+2026-11-24 16:21:23 [INFO] 저장: output\all_facility_log.csv
+2026-11-24 16:21:23 [INFO] 저장: output\summary_by_facility.csv (4행)
+2026-11-24 16:21:23 [INFO] 저장: output\defects_by_facility_type.csv (4행)
+2026-11-24 16:21:23 [INFO] 저장: output\defects_by_category.csv (4행)
+2026-11-24 16:21:23 [INFO] 저장: output\summary_by_date_facility.csv (15행)
+2026-11-24 16:21:23 [INFO] 저장: output\summary_by_camera.csv (5행)
+2026-11-24 16:21:23 [INFO] 저장: output\anomaly_records.csv (11행)
+2026-11-24 16:21:23 [INFO] 저장: output\box_stats_by_defect.csv (7행)
+2026-11-24 16:21:23 [INFO] 저장: output\box_region_by_defect.csv (7행)
+2026-11-24 16:21:23 [INFO] 저장: output\defect_spikes.csv (4행)
+2026-11-24 16:21:23 [INFO] 기록 골라내기 조건이 없어 filtered_records.csv는 만들지 않음 (--facility/--start/--end/--defect)
+2026-11-24 16:21:23 [INFO] 저장: output\chart_facility_defects.png
+2026-11-24 16:21:24 [INFO] 저장: output\chart_daily_defect_rate.png
+2026-11-24 16:21:24 [INFO] 저장: output\summary.txt
+2026-11-24 16:21:24 [INFO] 처리 완료

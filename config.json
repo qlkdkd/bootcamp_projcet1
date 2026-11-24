@@ -1,0 +1,23 @@
+{
+  "input_dir": ".",
+  "output_dir": "output",
+  "log_file_prefix": "facility_",
+  "defect_code_file": "defect_codes.csv",
+  "process_ms_threshold": 1000,
+  "run_log_file": "run_log.txt",
+  "filter": {
+    "facilities": null,
+    "start_date": null,
+    "end_date": null,
+    "defect_codes": null
+  },
+  "spike": {
+    "min_defects": 5,
+    "rate_ratio": 2.0,
+    "z_score": 3.0
+  },
+  "dash": {
+    "host": "127.0.0.1",
+    "port": 8050
+  }
+}

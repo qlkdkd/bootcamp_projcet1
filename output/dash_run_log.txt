@@ -1,0 +1,5 @@
+2026-11-24 14:20:46 [INFO] 시설 로그 파일 3개 발견: facility_A_log.csv, facility_B_log.csv, facility_C_log.csv
+2026-11-24 14:20:46 [INFO] 읽음: facility_A_log.csv (1966줄)
+2026-11-24 14:20:46 [INFO] 읽음: facility_B_log.csv (1352줄)
+2026-11-24 14:20:46 [INFO] 읽음: facility_C_log.csv (1880줄)
+2026-11-24 14:20:46 [INFO] 합친 로그: 5198줄

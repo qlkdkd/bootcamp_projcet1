@@ -1,0 +1,9 @@
+defect_code,defect_name,category,severity
+D01,스크래치,외관,B
+D02,찍힘,외관,A
+D03,이물,외관,C
+D04,얼룩,외관,C
+D05,치수 초과,치수,A
+D06,치수 미달,치수,A
+D07,부품 누락,조립,A
+D99,판정 불가,시스템,-
